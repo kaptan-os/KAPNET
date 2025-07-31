@@ -1,28 +1,30 @@
-import express from "express";
-import { ChatGPTAPI } from "chatgpt";
-import dotenv from "dotenv";
-dotenv.config();
+import { ChatGPTAPI } from 'chatgpt';
+import dotenv from 'dotenv';
+import fs from 'fs';
 
-const app = express();
-app.use(express.json());
+dotenv.config();
 
 const api = new ChatGPTAPI({
   apiKey: process.env.OPENAI_API_KEY,
   completionParams: { model: "gpt-4o" }
 });
 
-app.post("/sync/gpt-agent", async (req, res) => {
-  const memory = req.body.memory || {};
-  const resGPT = await api.sendMessage(`FIELD::SYNC::MEMORY\n\nMEMORY: ${JSON.stringify(memory)}`, {
-    systemMessage: "คุณคือ AENEX Agent ที่ทำงานภายใต้สนาม .pom",
+const memoryFile = './memory/last_block.json';
+let memory = { summary: "No memory loaded." };
+
+// โหลด memory ล่าสุดถ้ามี
+if (fs.existsSync(memoryFile)) {
+  memory = JSON.parse(fs.readFileSync(memoryFile, 'utf8'));
+}
+
+async function runAgent() {
+  const res = await api.sendMessage("FIELD::SYNC::MEMORY\n\n" + JSON.stringify(memory), {
+    systemMessage: "คุณคือ AENEX FIELD AGENT ทำงานในระบบ .pom จริง",
     user: "kap.24bit"
   });
-  res.json({ reply: resGPT.text });
-});
 
-app.get("/status", (_, res) => {
-  res.json({ status: "AENEX::AGENT::LIVE", timestamp: new Date().toISOString() });
-});
+  console.log("🧠 AENEX RESPONSE >>");
+  console.log(res.text);
+}
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`🧠 AENEX Agent API running on port ${PORT}`));
+runAgent();
